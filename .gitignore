@@ -25,3 +25,5 @@ Manifest.toml
 
 
 *.lst
+*.png
+*.plt

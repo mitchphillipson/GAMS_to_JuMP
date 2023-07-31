@@ -104,6 +104,7 @@ lamda = 0.5;
 solve routechoice using nlp minimizing obj;
 
 
+
 set	scn	Angle which determines lamda (degrees) /0,30,60,90,minRisk/
 
 set	theta(scn)	Angle which determines lamda (degrees) /0,30,60,90/
