@@ -1,0 +1,117 @@
+<html style="background: #000000">
+<pre><span style="background: #000000"><span style="color: #00FFFF">$title  Insurance under Oligopoly
+</span><span style="color: #00FF00">
+</span><span style="color: #00FFFF">parameter</span><span style="color: #00FF00">       pi      </span><span style="color: #FFFF00">True probability of bad outcome </span><span style="color: #00FF00">/0.01/
+                L       </span><span style="color: #FFFF00">Loss with a bad outcome </span><span style="color: #00FF00">/0.5/,
+                sigma   </span><span style="color: #FFFF00">Elasticity </span><span style="color: #00FF00">/2/;
+
+</span><span style="color: #00FFFF">parameter</span><span style="color: #00FF00">       rho     </span><span style="color: #FFFF00">Risk exponent</span><span style="color: #00FF00">;
+
+rho = 1 - 1/sigma;
+
+
+</span><span style="color: #00FFFF">variables</span><span style="color: #00FF00">       EU      </span><span style="color: #FFFF00">Expected utility</span><span style="color: #00FF00">,
+                C_G     </span><span style="color: #FFFF00">Consumption on a good day</span><span style="color: #00FF00">,
+                C_B     </span><span style="color: #FFFF00">Consumption on a bad day</span><span style="color: #00FF00">,
+                GAMMA   </span><span style="color: #FFFF00">Premium for coverage</span><span style="color: #00FF00">
+                K       </span><span style="color: #FFFF00">Coverage</span><span style="color: #00FF00">;
+
+</span><span style="color: #FFFFFF"><i>*       Declare some equations:
+</i></span><span style="color: #00FF00">
+</span><span style="color: #00FFFF">equations</span><span style="color: #00FF00">       eudef, budget_g, budget_b;
+
+</span><span style="color: #FFFFFF"><i>*       Represent the utility function as a macro:
+</i></span><span style="color: #00FF00">
+</span><span style="color: #00FFFF">$macro U(C)     (C**rho/rho)
+</span><span style="color: #00FF00">
+</span><span style="color: #FFFFFF"><i>*       Expected utility:
+</i></span><span style="color: #00FF00">
+eudef..         EU =e= (1-pi) * U(C_G) + pi * U(C_B);
+
+</span><span style="color: #FFFFFF"><i>*       Consumption in the good state:
+</i></span><span style="color: #00FF00">
+budget_G..      C_G =e= 1 - GAMMA * K;
+
+</span><span style="color: #FFFFFF"><i>*       Consumption in the bad state:
+</i></span><span style="color: #00FF00">
+budget_B..      C_B =e= 1 - L + (1-GAMMA) * K;
+
+</span><span style="color: #00FFFF">model</span><span style="color: #00FF00"> insurance /all/;
+
+C_G.L = 1;
+C_B.L = 1;
+K.L = 1;
+
+
+</span><span style="color: #FFFFFF"><i>*       Declare a macro to compute marginal utility:
+</i></span><span style="color: #00FF00">
+</span><span style="color: #00FFFF">$macro MU(c)    (C**(rho-1))
+</span><span style="color: #00FF00">
+</span><span style="color: #FFFFFF"><i>*       This is a complementarity constraint -- if the marginal cost
+*       exceeds the marginal benefit, then K must be zero.
+</i></span><span style="color: #00FF00">
+</span><span style="color: #FFFFFF"><i>*               Marginal cost of the insurance          =g= Marginal benefit
+</i></span><span style="color: #00FF00">
+</span><span style="color: #00FFFF">equation</span><span style="color: #00FF00"> coverage;
+
+</span><span style="color: #FFFFFF"><i>*       Cost of insurance is the premium (GAMMA) which must be paid
+*       in each state of the world.  Benefit is the expected value of the
+*       payment made in the bad state.
+</i></span><span style="color: #00FF00">
+coverage..      GAMMA * ((1-pi) * MU(C_G) + pi*MU(C_B)) =g= pi * MU(C_B);
+
+</span><span style="color: #FFFFFF"><i>*       Declare the model as an equilibrium problem corresponding to the first
+*       order conditions of the nonlinear programming model:
+</i></span><span style="color: #00FF00">
+</span><span style="color: #00FFFF">model</span><span style="color: #00FF00"> equilibrium /eudef.EU, budget_g.C_G, budget_B.C_B, coverage.K/;
+
+GAMMA.FX = pi;
+
+</span><span style="color: #00FFFF">solve</span><span style="color: #00FF00"> equilibrium </span><span style="color: #00FFFF">using</span><span style="color: #00FF00"> mcp;
+
+</span><span style="color: #00FFFF">variable</span><span style="color: #00FF00">        PROFIT          </span><span style="color: #FFFF00">Profit of one firm</span><span style="color: #00FF00">;
+
+</span><span style="color: #00FFFF">parameter</span><span style="color: #00FF00">       kother          </span><span style="color: #FFFF00">Insurance provided by other firms </span><span style="color: #00FF00">/0/,
+                dev             </span><span style="color: #FFFF00">Deviation from Nash equilibrium</span><span style="color: #00FF00">
+                iterlog         </span><span style="color: #FFFF00">Iteration log for diagonalization</span><span style="color: #00FF00">;
+
+</span><span style="color: #00FFFF">equation</span><span style="color: #00FF00">        profitdef;
+
+profitdef..     PROFIT =e= (GAMMA - PI) * (K - kother);
+
+</span><span style="color: #00FFFF">model</span><span style="color: #00FF00"> nash /all/;
+
+</span><span style="color: #00FFFF">set</span><span style="color: #00FF00">     n       </span><span style="color: #FFFF00">Number of symmetric insurance companies </span><span style="color: #00FF00">/1*5/,
+        iter    </span><span style="color: #FFFF00">Nash iterations for diagonalization </span><span style="color: #00FF00">/iter1*iter25/;
+
+GAMMA.LO = 0;
+GAMMA.UP = +</span><span style="color: #00FFFF">inf</span><span style="color: #00FF00">;
+C_G.LO = 1e-5;
+C_B.LO = 1e-5;
+
+</span><span style="color: #FFFFFF"><i>*       Place a lower bound on expected utility equal to the value
+*       were there no insurance.
+</i></span><span style="color: #00FF00">
+EU.LO = (1-pi) * U(1) + pi * U(1-L);
+
+nash.solvelink = 5;
+</span><span style="color: #00FFFF">loop</span><span style="color: #00FF00">(n,
+        dev = 1;
+        kother = K.L * (n.val-1)/n.val;
+        </span><span style="color: #00FFFF">loop</span><span style="color: #00FF00">(iter$</span><span style="color: #00FFFF">round</span><span style="color: #00FF00">(dev,4),
+          </span><span style="color: #00FFFF">solve</span><span style="color: #00FF00"> nash </span><span style="color: #00FFFF">using</span><span style="color: #00FF00"> nlp </span><span style="color: #00FFFF">maximizing</span><span style="color: #00FF00"> PROFIT;
+          iterlog(n,iter,</span><span style="color: #FFFF00">"dev"</span><span style="color: #00FF00">) = dev;
+          iterlog(n,iter,</span><span style="color: #FFFF00">"K"</span><span style="color: #00FF00">) = K.L;
+          iterlog(n,iter,</span><span style="color: #FFFF00">"GAMMA"</span><span style="color: #00FF00">) = GAMMA.L;
+          iterlog(n,iter,</span><span style="color: #FFFF00">"PROFIT"</span><span style="color: #00FF00">) = PROFIT.L;
+          iterlog(n,iter,</span><span style="color: #FFFF00">"C_G"</span><span style="color: #00FF00">) = C_G.L;
+          iterlog(n,iter,</span><span style="color: #FFFF00">"C_B"</span><span style="color: #00FF00">) = C_B.L;
+          dev = </span><span style="color: #00FFFF">abs</span><span style="color: #00FF00">(kother - K.L * (n.val-1)/n.val);
+          kother = K.L * (n.val-1)/n.val;
+        );
+);
+
+</span><span style="color: #00FFFF">option</span><span style="color: #00FF00"> iterlog:3:2:1;
+</span><span style="color: #00FFFF">display</span><span style="color: #00FF00"> iterlog;
+</span></span></pre>
+</html>
