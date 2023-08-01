@@ -69,6 +69,9 @@ parameter	pref(s)		Reference price,
 pref(s) = demand.m(s);
 dref(i,s) = qref(s) * load(s,i);
 
+
+
+
 *	4. Set up a calibrated equilibrium model:
 
 parameter	epsilon(i)	Elasticity of demand /rsd 0.1,  com 0.2,  ind 0.5/;
@@ -125,6 +128,10 @@ ldc(s,"Benchmark") = sum(i,D.L(i,s));
 mc("Coal") = 2 * mc("Coal");
 
 SOLVE samuelson USING nlp MAXIMIZING surplus;
+
+equil.iterlim = 10000;
+SOLVE equil USING mcp;
+
 
 ldc(s,"Counterfactual") = sum(i,D.L(i,s));
 display ldc;

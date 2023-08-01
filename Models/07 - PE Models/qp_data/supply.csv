@@ -1,0 +1,9 @@
+j,supply_domain,value
+Nuclear,mc,4
+Coal,mc,6
+Gas,mc,7
+Diesel,mc,9
+Nuclear,cap,0.3
+Coal,cap,0.3
+Gas,cap,0.2
+Diesel,cap,0.3
