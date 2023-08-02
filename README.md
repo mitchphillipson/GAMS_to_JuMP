@@ -25,6 +25,8 @@
 
     The solutions don't match perfectly. There are about 40 solve iterations and the middle solutions don't match.
 
+13 - Mor Expected Utility
+- NashInsurance - NLP model. Similar to the model in 12, still debugging. Iterations aren't matching GAMS.
 
 22 - NonConvexity
 - game22 - MIP model of triangle sum game
