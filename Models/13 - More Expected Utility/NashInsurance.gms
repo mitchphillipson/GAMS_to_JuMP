@@ -90,13 +90,18 @@ P_C.L = 1;
 P_G.L = 1-pi;
 P_B.L = pi;
 M.L = 1-pi + pi*(1-L);
+
 P_C.LO = 1e-5;
 P_G.LO = 1e-5;
 P_B.LO = 1e-5;
+
 P_G.FX = 1-pi; 
+
 C_G.L = (1-pi) + pi*(1-L);
 C_B.L = (1-pi) + pi*(1-L);
+
 GAMMA.FX = pi;
+
 K.L = (C_B.L-(1-L))/(1-pi);
 GAMMA.L = pi;
 
@@ -167,7 +172,7 @@ $ondotl
 );
 
 option iterlog:3:2:1;
-display iterlog, equil;
+display iterlog,equil;
 
 $exit
 
