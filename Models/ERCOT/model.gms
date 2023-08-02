@@ -82,9 +82,9 @@ EU_def(r)..		EU(r) =e= 1/PEU(r);
 C_def(r,s)..		C(r,s) =e= EU(r) * (PEU(r)/PC(r,s))**sigma;
 *	-----------------------------------------------------------------------------
 
-profit_K(r)..		sqrt(PR(r)) =e= sum(s, pi(s)*PE(r,s)*(1 - w(r,s)*(1-M(r))));
+profit_K(r)..		sqrt(PR(r)) =e= sum(s, pi(s)*PE(r,s)*( 1 - w(r,s)*(1-M(r)) )  );
 
-profit_M(r)..		alpha /(1 - M(r))**gamma =e= sum(s, pi(s)*PE(r,S)*w(r,s));
+profit_M(r)..		alpha /(1 - M(r))**gamma =e= sum(s, pi(s)*PE(r,s)*w(r,s));
 
 profit_X(r,s)..		PE(r,s) =e= PX(s);
 
@@ -108,7 +108,9 @@ EU.L(r) = 1;
 C.L(r,s) = 1;
 PE.L(r,s) = 1;
 K.L(r) = 1;
+
 M.FX(r) = 0;
+
 PE.L(r,s) = 1;
 PR.L(r) = 1;
 
@@ -120,8 +122,12 @@ PX.FX(s) = 1;
 lamda(r,s) = 1;
 w(r,s) = 0;
 
+*01
 network.iterlim = 0;
 solve network using mcp;
+
+execute_unload "network.gdx"
+$exit
 
 *	Impose the weather shocks:
 
@@ -133,8 +139,12 @@ lamda(r,s) = lamda0(r,s);
 
 M.FX(r) = m0(r);
 
+
+*02
 network.iterlim = 10000;
 solve network using mcp;
+
+
 
 *	Calibrate parameters of the maitenance cost function which are consistent
 *	with the assumed maintenance levels in ercot and ferc:
@@ -145,12 +155,15 @@ gamma = ( log(sum(s, pi(s)*PE.L("ercot",S)*W("ercot",s))) - log(sum(s, pi(s)*PE.
 alpha = sum(s, pi(s)*PE.L("ercot",S)*W("ercot",s)) * (1-M.L("ercot"))**gamma;
 display gamma, alpha;
 
+
 *	Double check that this calibration is correct -- we should be at the solution of the model
 *	with endogenous maintenance.  Unfix maintenance levels:
 
 M.UP(r) = 1;
 M.LO(r) = 0;
 
+
+* 03
 network.iterlim = 0;
 solve network using mcp;
 abort$round(network.objval,3) "BaU replication error.";
@@ -212,6 +225,7 @@ X.LO(r,s) = -inf;
 X.UP(r,s) = +inf;
 PX.LO(s) = 0; PX.UP(s) = +inf;
 
+*04
 solve network using mcp;
 
 $set scn '"LongRun","trade"'
@@ -221,6 +235,7 @@ X.FX(r,s) = 0;
 PX.FX(s) = 1;
 K.FX(r) = k0(r);
 
+*05
 SOLVE network using mcp;
 
 
@@ -231,6 +246,7 @@ X.LO(r,s) = -inf;
 X.UP(r,s) = +inf;
 PX.LO(s) = 0; PX.UP(s) = +inf;
 
+*06
 solve network using mcp;
 
 $set scn '"ShortRun","trade"'
@@ -252,6 +268,7 @@ K.UP(r) = inf; K.LO(r) = 0;
 X.FX(r,s) = 0;
 PX.FX(s) = 1;
 
+*07
 solve network using mcp;
 
 $set scn '"Climate","notrade"'
@@ -263,7 +280,9 @@ X.LO(r,s) = -inf;
 X.UP(r,s) = +inf;
 PX.LO(s) = 0; PX.UP(s) = +inf;
 
+*08
 solve network using mcp;
+
 
 $set scn '"Climate","trade"'
 $batinclude %gams.scrdir%report 

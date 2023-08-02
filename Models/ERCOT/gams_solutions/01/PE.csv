@@ -1,0 +1,7 @@
+r_0,s_1,level,marginal,lower,upper,scale
+ercot,summer,1.0,0.0,0.0,inf,1.0
+ercot,winter,1.0,0.0,0.0,inf,1.0
+ercot,vortex,1.0,0.0,0.0,inf,1.0
+ferc,summer,1.0,0.0,0.0,inf,1.0
+ferc,winter,1.0,0.0,0.0,inf,1.0
+ferc,vortex,1.0,0.0,0.0,inf,1.0
