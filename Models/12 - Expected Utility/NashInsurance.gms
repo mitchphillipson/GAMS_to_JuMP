@@ -31,7 +31,7 @@ equations	eudef, budget_g, budget_b;
 
 *	Represent the utility function as a macro:
 
-$macro U(C)	(C**rho/rho)
+$macro U(C)	((C)**rho/rho)
 
 *	Expected utility:
 
@@ -54,7 +54,7 @@ K.L = 1;
 
 *	Declare a macro to compute marginal utility:
 
-$macro MU(c)	(C**(rho-1))
+$macro MU(c)	((C)**(rho-1))
 
 *	This is a complementarity constraint -- if the marginal cost
 *	exceeds the marginal benefit, then K must be zero.
@@ -74,15 +74,18 @@ coverage..	GAMMA * ((1-pi) * MU(C_G) + pi*MU(C_B)) =g= pi * MU(C_B);
 
 model equilibrium /eudef.EU, budget_g.C_G, budget_B.C_B, coverage.K/;
 
-GAMMA.FX = pi;
+*GAMMA.FX = pi;
 
-solve equilibrium using mcp;
+*solve equilibrium using mcp;
+
+
+*$exit
 
 variable	PROFIT		Profit of one firm;
 
 parameter	kother		Insurance provided by other firms /0/,
-		dev		Deviation from Nash equilibrium
-		iterlog		Iteration log for diagonalization;
+			dev			Deviation from Nash equilibrium
+			iterlog		Iteration log for diagonalization;
 
 equation	profitdef;
 
@@ -120,5 +123,7 @@ loop(n,
 	);
 );
 
-option iterlog:3:2:1;
+*option iterlog:3:2:1;
 display iterlog;
+
+execute_unload "iterlog.gdx", iterlog;
