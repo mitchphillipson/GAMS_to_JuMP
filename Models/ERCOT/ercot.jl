@@ -1,4 +1,6 @@
-using Complementarity
+using JuMP
+import PATHSolver
+
 using NamedArrays
 using CSV
 
@@ -23,16 +25,12 @@ function test_solution(model,path_to_sols)
 
         for row in df
             domain = Symbol.([row[i] for i∈1:n])
-            value = row[n+1]
-            @assert isapprox(result_value(model[var][domain...]),value,atol=1e-5) "Variable, $var, doesn't match in solution $path_to_sols"
+            val = row[n+1]
+            @assert isapprox(value(model[var][domain...]),val,atol=1e-5) "Variable, $var, doesn't match in solution $path_to_sols"
         end
     end
     
 end
-
-##########
-## Data ##
-##########
 
 R = [:ercot,:ferc] #Regions
 S = [:summer,:winter,:vortex] #States of nature
@@ -59,14 +57,9 @@ m0 = NamedArray([.4,.8],R)
 α = 0
 γ = 0
 
-
-###########
-## Model ##
-###########
-
 function ERCOT()
 
-    model = MCPModel()
+    model = Model(PATHSolver.Optimizer)
 
     @variables(model,begin
         K[R]>=0,   (start=1,)   #Capacity
@@ -85,44 +78,28 @@ function ERCOT()
     end)
 
 
-    @NLexpressions(model,begin
-        PC_def[r=R,s=S], PC[r,s] - (θe*(PE[r,s]*λ[r,s])^(1-ESUB) + 1 - θe)^(1/(1-ESUB))
-        PEU_def[r=R], PEU[r] - (sum(pi[s]*PC[r,s]^(1-σ) for s∈S)^(1/(1-σ)))
+    @constraints(model,begin
+        PC_def[r=R,s=S], PC[r,s] - (θe*(PE[r,s]*λ[r,s])^(1-ESUB) + 1 - θe)^(1/(1-ESUB)) ⟂ PC[r,s]
+        PEU_def[r=R], PEU[r] - (sum(pi[s]*PC[r,s]^(1-σ) for s∈S)^(1/(1-σ))) ⟂ PEU[r]
         
-        EU_def[r=R], EU[r] - 1/PEU[r]
+        EU_def[r=R], EU[r] - 1/PEU[r] ⟂ EU[r]
         
-        C_def[r=R,s=S], C[r,s] - EU[r]*(PEU[r]/PC[r,s])^σ
+        C_def[r=R,s=S], C[r,s] - EU[r]*(PEU[r]/PC[r,s])^σ ⟂ C[r,s]
         
-        profit_K[r=R], sqrt(PR[r]) - sum( pi[s]*PE[r,s]*(1-w[r,s]*(1-M[r])) for s∈S)
-        profit_M[r=R], α/(1-M[r])^γ - sum( pi[s]*PE[r,s]*w[r,s] for s∈S)
-        profit_X[r=R,s=S], PE[r,s] - PX[s]
+        profit_K[r=R], sqrt(PR[r]) - sum( pi[s]*PE[r,s]*(1-w[r,s]*(1-M[r])) for s∈S) ⟂ K[r]
+        profit_M[r=R], α/(1-M[r])^γ - sum( pi[s]*PE[r,s]*w[r,s] for s∈S) ⟂ M[r]
+        profit_X[r=R,s=S], PE[r,s] - PX[s] ⟂ X[r,s]
         
-        market_PE[r=R,s=S], K[r]*(1-w[r,s]*(1-M[r])) - ( C[r,s] * λ[r,s] * (PC[r,s]/(PE[r,s]*λ[r,s]))^ESUB + X[r,s])
-        market_PR[r=R], .5 - .5*K[r]*1/sqrt(PR[r])
-        market_PX[s=S], sum(X[r,s] for r∈R) - 0
+        market_PE[r=R,s=S], K[r]*(1-w[r,s]*(1-M[r])) - ( C[r,s] * λ[r,s] * (PC[r,s]/(PE[r,s]*λ[r,s]))^ESUB + X[r,s]) ⟂ PE[r,s]
+        market_PR[r=R], .5 - .5*K[r]*1/sqrt(PR[r]) ⟂ PR[r]
+        market_PX[s=S], sum(X[r,s] for r∈R) - 0 ⟂ PX[s]
     end)
 
-
-    @complementarity(model,profit_K,K)
-    @complementarity(model,profit_M,M)
-    @complementarity(model,profit_X,X)
-    @complementarity(model,market_PE,PE)
-    @complementarity(model,market_PR,PR)
-    @complementarity(model,market_PX,PX)
-    @complementarity(model,PEU_def,PEU)
-    @complementarity(model,PC_def,PC)
-    @complementarity(model,EU_def,EU)
-    @complementarity(model,C_def,C)
 
     return model
 
 
 end
-
-
-##############
-## Model 01 ##
-##############
 
 λ.=1
 w.=0
@@ -137,15 +114,14 @@ fix.(model_01[:M],0,force=true)
 
 #println(start_value.(ignore_weather[:PC]))
 
-out = @capture_out solveMCP(model_01,cumulative_iteration_limit=0)
+
+set_attribute(model_01, "cumulative_iteration_limit", 0)
+
+set_silent(model_01)
+
+optimize!(model_01)
 
 test_solution(model_01,"gams_solutions/01/")
-
-
-
-##############
-## Model 02 ##
-##############
 
 w .= w0
 λ .= λ0
@@ -158,7 +134,9 @@ fix.(model_02[:M],m0[R].array,force=true)
 
 
 
-out = @capture_out solveMCP(model_02)
+set_silent(model_02)
+
+optimize!(model_02)
 
 
 test_solution(model_02,"gams_solutions/02/")
@@ -168,18 +146,16 @@ test_solution(model_02,"gams_solutions/02/")
 #	with the assumed maintenance levels in ercot and ferc:
 
 
-γ = ( log(sum( pi[s] * result_value(model_02[:PE][:ercot,s])*w[:ercot,s] for s∈S)) - 
-      log(sum( pi[s] * result_value(model_02[:PE][:ferc,s]) *w[:ferc,s]  for s∈S))
-    ) / (log( 1-result_value(model_02[:M][:ferc])) - log( 1-result_value(model_02[:M][:ercot])))
+γ = ( log(sum( pi[s] * value(model_02[:PE][:ercot,s])*w[:ercot,s] for s∈S)) - 
+      log(sum( pi[s] * value(model_02[:PE][:ferc,s]) *w[:ferc,s]  for s∈S))
+    ) / (log( 1-value(model_02[:M][:ferc])) - log( 1-value(model_02[:M][:ercot])))
 
 
-α = sum( pi[s]*result_value(model_02[:PE][:ercot,s])*w[:ercot,s] for s∈S) * (1-result_value(model_02[:M][:ercot]))^γ
+α = sum( pi[s]*value(model_02[:PE][:ercot,s])*w[:ercot,s] for s∈S) * (1-value(model_02[:M][:ercot]))^γ
 
 
 
-##############
-## Model 03 ##
-##############
+
 w .= w0
 λ .= λ0
 
@@ -188,52 +164,49 @@ model_03 = ERCOT()
 fix.(model_03[:X],0,force=true)
 fix.(model_03[:PX],1,force=true)
 
-set_start_value.(all_variables(model_03),result_value.(all_variables(model_02)))
+set_start_value.(all_variables(model_03),value.(all_variables(model_02)))
 
-out = @capture_out solveMCP(model_03,cumulative_iteration_limit=0)
+set_silent(model_03)
+
+optimize!(model_03)
 
 test_solution(model_03,"gams_solutions/03/")
 
 
-k0 = result_value.(model_03[:K])
+k0 = value.(model_03[:K])
 
 
-
-##############
-## Model 04 ##
-##############
 
 model_04 = ERCOT()
 
-out = @capture_out solveMCP(model_04)
+set_silent(model_04)
+
+optimize!(model_04)
 
 test_solution(model_04,"gams_solutions/04/")
 
 
-
-##############
-## Model 05 ##
-##############
 model_05 = ERCOT()
 
 fix.(model_05[:X],0,force=true)
 fix.(model_05[:PX],1,force=true)
 fix.(model_05[:K],k0,force=true)
 
-out = @capture_out solveMCP(model_05)
+set_silent(model_05)
+
+optimize!(model_05)
 
 
 test_solution(model_05,"gams_solutions/05/")
 
 
-##############
-## Model 06 ##
-##############
 model_06 = ERCOT()
 
 fix.(model_06[:K],k0,force=true)
 
-out = @capture_out solveMCP(model_06)
+set_silent(model_06)
+
+optimize!(model_06)
 
 
 #print(generate_report(model_06))
@@ -241,9 +214,6 @@ out = @capture_out solveMCP(model_06)
 test_solution(model_06,"gams_solutions/06/")
 
 
-##############
-## Model 07 ##
-##############
 pi[S] = [300,55,10]./365
 
 model_07 = ERCOT()
@@ -251,17 +221,18 @@ model_07 = ERCOT()
 fix.(model_07[:X],0,force=true)
 fix.(model_07[:PX],1,force=true)
 
-out = @capture_out solveMCP(model_07)
+set_silent(model_07)
+
+optimize!(model_07)
 
 test_solution(model_07,"gams_solutions/07/")
 
 
 
-##############
-## Model 08 ##
-##############
 model_08 = ERCOT()
 
-out = @capture_out solveMCP(model_08)
+set_silent(model_08)
+
+optimize!(model_08)
 
 test_solution(model_08,"gams_solutions/08/")
